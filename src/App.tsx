@@ -163,7 +163,11 @@ function App() {
       >
         Download Highlighted PDF
       </button>
-      <div style={{ position: "relative", maxWidth: "100%", overflow: "auto" }}>
+      <div
+        style={{
+          position: "relative",
+        }}
+      >
         <canvas ref={canvasRef} />
         <div
           ref={highlightLayerRef}
