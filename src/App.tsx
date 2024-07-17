@@ -9,6 +9,8 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const highlightLayerRef = useRef<HTMLDivElement>(null);
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
+  const [pdfText, setPdfText] = useState<string>("");
+  console.log(pdfText);
 
   const renderPage = async (pdf: PDFDocumentProxy, pageNum: number) => {
     if (!canvasRef.current || !highlightLayerRef.current) return;
@@ -70,6 +72,22 @@ function App() {
     });
   };
 
+  const extractTextFromPDF = async (pdf: PDFDocumentProxy) => {
+    let text = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item) => {
+          if ("str" in item) return item.str;
+          return "";
+        })
+        .join(" ");
+      text += pageText + "\n";
+    }
+    return text;
+  };
+
   const onChangeInput = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
@@ -85,6 +103,10 @@ function App() {
     });
     const pdfDoc = await loadingTask.promise;
     setPdfDoc(pdfDoc);
+
+    // Extract text from PDF
+    const extractedText = await extractTextFromPDF(pdfDoc);
+    setPdfText(extractedText);
 
     renderPage(pdfDoc, 1);
   };
@@ -173,6 +195,13 @@ function App() {
           ref={highlightLayerRef}
           style={{ position: "absolute", top: 0, left: 0 }}
         />
+      </div>
+
+      <div
+        style={{ marginTop: "20px", maxWidth: "800px", wordWrap: "break-word" }}
+      >
+        <h3>Extracted Text:</h3>
+        <pre>{pdfText}</pre>
       </div>
     </div>
   );
