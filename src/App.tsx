@@ -10,7 +10,10 @@ function App() {
   const highlightLayerRef = useRef<HTMLDivElement>(null);
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [pdfText, setPdfText] = useState<string>("");
-  console.log(pdfText);
+  const [pdfSize, setPdfSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   const renderPage = async (pdf: PDFDocumentProxy, pageNum: number) => {
     if (!canvasRef.current || !highlightLayerRef.current) return;
@@ -104,6 +107,11 @@ function App() {
     const pdfDoc = await loadingTask.promise;
     setPdfDoc(pdfDoc);
 
+    // Get PDF size
+    const page = await pdfDoc.getPage(1);
+    const viewport = page.getViewport({ scale: 1 });
+    setPdfSize({ width: viewport.width, height: viewport.height });
+
     // Extract text from PDF
     const extractedText = await extractTextFromPDF(pdfDoc);
     setPdfText(extractedText);
@@ -112,9 +120,14 @@ function App() {
   };
 
   const downloadHighlightedPDF = async () => {
-    if (!pdfDoc || !canvasRef.current || !highlightLayerRef.current) return;
+    if (!pdfDoc || !canvasRef.current || !highlightLayerRef.current || !pdfSize)
+      return;
 
-    const pdf = new jsPDF();
+    const pdf = new jsPDF({
+      orientation: pdfSize.width > pdfSize.height ? "landscape" : "portrait",
+      unit: "pt",
+      format: [pdfSize.width, pdfSize.height],
+    });
 
     for (let i = 1; i <= pdfDoc.numPages; i++) {
       await renderPage(pdfDoc, i);
@@ -144,14 +157,7 @@ function App() {
 
       // Add the combined image to the PDF
       const imgData = combinedCanvas.toDataURL("image/jpeg", 1.0);
-      pdf.addImage(
-        imgData,
-        "JPEG",
-        0,
-        0,
-        pdf.internal.pageSize.getWidth(),
-        pdf.internal.pageSize.getHeight()
-      );
+      pdf.addImage(imgData, "JPEG", 0, 0, pdfSize.width, pdfSize.height);
 
       if (i < pdfDoc.numPages) {
         pdf.addPage();
@@ -168,7 +174,6 @@ function App() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        minHeight: "100vh",
         padding: "20px",
       }}
     >
@@ -188,9 +193,16 @@ function App() {
       <div
         style={{
           position: "relative",
+          width: "100%",
         }}
       >
-        <canvas ref={canvasRef} />
+        <canvas
+          ref={canvasRef}
+          style={{
+            width: "100%",
+            height: "auto",
+          }}
+        />
         <div
           ref={highlightLayerRef}
           style={{ position: "absolute", top: 0, left: 0 }}
